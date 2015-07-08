@@ -20,6 +20,7 @@ typedef void(^StartupCallback)(BOOL success, NSError *error);
 @property (weak, nonatomic) id<GBPingDelegate>      delegate;
 
 @property (copy, nonatomic) NSString                *host;
+@property (strong, nonatomic) NSData                *hostAddress;
 @property (assign, atomic) NSTimeInterval           pingPeriod;
 @property (assign, atomic) NSTimeInterval           timeout;
 @property (assign, atomic) NSUInteger               payloadSize;
