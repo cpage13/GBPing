@@ -369,7 +369,10 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         const struct ICMPHeader *headerPointer = [[self class] icmpInPacket:packet];
         NSUInteger seqNo = (NSUInteger)OSSwapBigToHostInt16(headerPointer->sequenceNumber);
         NSNumber *key = @(seqNo);
-        GBPingSummary *pingSummary = [(GBPingSummary *)self.pendingPings[key] copy];
+        GBPingSummary *pingSummary;
+        @synchronized(self) {
+            pingSummary = [(GBPingSummary *)self.pendingPings[key] copy];
+        }
         
         if (pingSummary) {
             if ([self isValidPingResponsePacket:packet]) {
@@ -380,9 +383,11 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 pingSummary.status = GBPingStatusSuccess;
                 
                 //invalidate the timeouttimer
-                NSTimer *timer = self.timeoutTimers[key];
-                [timer invalidate];
-                [self.timeoutTimers removeObjectForKey:key];
+                @synchronized(self) {
+                    NSTimer *timer = self.timeoutTimers[key];
+                    [timer invalidate];
+                    [self.timeoutTimers removeObjectForKey:key];
+                }
                 
                 
                 if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveReplyWithSummary:)] ) {
@@ -486,7 +491,9 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             
             //add it to pending pings
             NSNumber *key = @(self.nextSequenceNumber);
-            self.pendingPings[key] = newPingSummary;
+            @synchronized(self) {
+                self.pendingPings[key] = newPingSummary;
+            }
             
             //increment sequence number
             self.nextSequenceNumber += 1;
@@ -497,7 +504,8 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             //we need to clean up our list of pending pings, and we do that after the timeout has elapsed (+ some grace period)
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)((self.timeout + kPendingPingsCleanupGrace) * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                 //remove the ping from the pending list
-                [self.pendingPings removeObjectForKey:key];
+                //for now only remove when stop is called, this may cause an issue if a packet is received after this timeout and object has not been stopped.
+                //[self.pendingPings removeObjectForKey:key];
             });
             
             //add a timeout timer
@@ -513,14 +521,17 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 
                 //remove the timer itself from the timers list
                 //lm make sure that the timer list doesnt grow and these removals actually work... try logging the count of the timeoutTimers when stopping the pinger
-                [self.timeoutTimers removeObjectForKey:key];
+                //comment for now, may cause issue - will investigate later
+                //[self.timeoutTimers removeObjectForKey:key];
             };
             
             NSTimer *timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout target:self selector:@selector(_invokeTimeoutCallback:) userInfo:[(id)block copy] repeats:NO];
             [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
             
             //keep a local ref to it
-            self.timeoutTimers[key] = timeoutTimer;
+            @synchronized(self) {
+                self.timeoutTimers[key] = timeoutTimer;
+            }
             
             //notify delegate about this
             if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didSendPingWithSummary:)]) {
