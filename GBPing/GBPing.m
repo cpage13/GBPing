@@ -370,7 +370,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
         NSUInteger seqNo = (NSUInteger)OSSwapBigToHostInt16(headerPointer->sequenceNumber);
         NSNumber *key = @(seqNo);
         GBPingSummary *pingSummary;
-        @synchronized(self) {
+        @synchronized(self.pendingPings) {
             pingSummary = [(GBPingSummary *)self.pendingPings[key] copy];
         }
         
@@ -383,10 +383,12 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 pingSummary.status = GBPingStatusSuccess;
                 
                 //invalidate the timeouttimer
-                @synchronized(self) {
+                @synchronized(self.timeoutTimers) {
                     NSTimer *timer = self.timeoutTimers[key];
-                    [timer invalidate];
-                    [self.timeoutTimers removeObjectForKey:key];
+                    if (timer) {
+                        [timer invalidate];
+                        [self.timeoutTimers removeObjectForKey:key];
+                    }
                 }
                 
                 
@@ -491,7 +493,7 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
             
             //add it to pending pings
             NSNumber *key = @(self.nextSequenceNumber);
-            @synchronized(self) {
+            @synchronized(self.pendingPings) {
                 self.pendingPings[key] = newPingSummary;
             }
             
@@ -525,11 +527,10 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 //[self.timeoutTimers removeObjectForKey:key];
             };
             
-            NSTimer *timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout target:self selector:@selector(_invokeTimeoutCallback:) userInfo:[(id)block copy] repeats:NO];
-            [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
-            
-            //keep a local ref to it
-            @synchronized(self) {
+                NSTimer *timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout target:self selector:@selector(_invokeTimeoutCallback:) userInfo:[(id)block copy] repeats:NO];
+                [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
+                //keep a local ref to it
+            @synchronized(self.timeoutTimers) {
                 self.timeoutTimers[key] = timeoutTimer;
             }
             
