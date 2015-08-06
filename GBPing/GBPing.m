@@ -383,13 +383,13 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 pingSummary.status = GBPingStatusSuccess;
                 
                 //invalidate the timeouttimer
-                @synchronized(self.timeoutTimers) {
+                //@synchronized(self.timeoutTimers) {
                     NSTimer *timer = self.timeoutTimers[key];
                     if (timer) {
                         [timer invalidate];
                         [self.timeoutTimers removeObjectForKey:key];
                     }
-                }
+                //}
                 
                 
                 if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didReceiveReplyWithSummary:)] ) {
@@ -530,9 +530,9 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
                 NSTimer *timeoutTimer = [NSTimer scheduledTimerWithTimeInterval:self.timeout target:self selector:@selector(_invokeTimeoutCallback:) userInfo:[(id)block copy] repeats:NO];
                 [[NSRunLoop mainRunLoop] addTimer:timeoutTimer forMode:NSRunLoopCommonModes];
                 //keep a local ref to it
-            @synchronized(self.timeoutTimers) {
+            //@synchronized(self.timeoutTimers) {
                 self.timeoutTimers[key] = timeoutTimer;
-            }
+            //}
             
             //notify delegate about this
             if (self.delegate && [self.delegate respondsToSelector:@selector(ping:didSendPingWithSummary:)]) {
