@@ -38,7 +38,6 @@ static NSTimeInterval const kDefaultTimeout =           2.0;
 @interface GBPing ()
 
 @property (assign, atomic) int                          socket;
-@property (strong, nonatomic) NSData                    *hostAddress;
 @property (assign, nonatomic) uint16_t                  identifier;
 
 @property (assign, atomic, readwrite) BOOL              isPinging;
